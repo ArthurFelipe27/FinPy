@@ -19,6 +19,70 @@
 
 <body>
 
+    <!-- === MODAIS PERSONALIZADOS === -->
+
+    <!-- Modal de Impressão (Já existia) -->
+    <div id="print-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-print"></i> Imprimir Relatório</h3>
+                <button onclick="closePrintModal()" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <p>Selecione o tipo de relatório que deseja gerar:</p>
+            <div class="print-options">
+                <div class="print-option-group">
+                    <span>Detalhado (Lista)</span>
+                    <button onclick="confirmPrint('weekly')" class="btn-print-opt"><i class="fas fa-calendar-week"></i>
+                        Semanal</button>
+                    <button onclick="confirmPrint('monthly')" class="btn-print-opt"><i class="fas fa-calendar-alt"></i>
+                        Mensal</button>
+                </div>
+                <div class="print-option-group">
+                    <span>Executivo (Resumo Gráfico)</span>
+                    <button onclick="confirmPrint('annual')" class="btn-print-opt accent"><i
+                            class="fas fa-chart-bar"></i> Anual</button>
+                    <button onclick="confirmPrint('all')" class="btn-print-opt accent"><i class="fas fa-globe"></i>
+                        Geral</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Novo: Modal de Alerta (Substitui alert()) -->
+    <div id="custom-alert" class="modal-overlay hidden" style="z-index: 200;">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h3 id="alert-title">Atenção</h3>
+                <button onclick="closeAlert()" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="alert-message">Mensagem aqui...</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAlert()" class="btn-primary-modal">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Novo: Modal de Confirmação (Substitui confirm()) -->
+    <div id="custom-confirm" class="modal-overlay hidden" style="z-index: 200;">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h3>Confirmação</h3>
+                <button onclick="resolveConfirm(false)" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message">Tem certeza?</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="resolveConfirm(false)" class="btn-secondary-modal">Cancelar</button>
+                <button onclick="resolveConfirm(true)" class="btn-danger-modal">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- === FIM MODAIS === -->
+
     <aside class="sidebar no-print">
         <div class="logo">
             <i class="fas fa-wallet"></i> FinPy
@@ -36,20 +100,21 @@
 
             <li class="nav-category" style="margin-top: 20px;">Planejamento</li>
             <li><button class="nav-btn" onclick="showGoalsView()"><i class="fas fa-bullseye"></i> Metas</button></li>
+            <li><button class="nav-btn" onclick="showCategoriesView()"><i class="fas fa-tags"></i> Categorias</button>
+            </li>
 
             <li class="nav-category" style="margin-top: 20px;">Dados</li>
             <li><button class="nav-btn" onclick="exportData()"><i class="fas fa-file-csv"></i> Exportar CSV</button>
             </li>
-            <li><button class="nav-btn" onclick="printReport()"><i class="fas fa-print"></i> Imprimir / PDF</button>
+            <li><button class="nav-btn" onclick="openPrintModal()"><i class="fas fa-print"></i> Imprimir / PDF</button>
             </li>
         </ul>
         <div style="margin-top: auto; font-size: 12px; opacity: 0.6;">
-            v1.9.0 Print PDF
+            v2.2.0 Custom Alerts
         </div>
     </aside>
 
     <main class="main-content no-print">
-        <!-- Cabeçalho Comum -->
         <header>
             <div class="header-left">
                 <h1 id="page-title">Visão Geral</h1>
@@ -168,30 +233,43 @@
                 <!-- Cards de Metas -->
             </div>
         </div>
+
+        <!-- VIEW 3: GERENCIAR CATEGORIAS -->
+        <div id="view-categories-page" class="view-section hidden">
+            <div class="categories-layout">
+                <div class="panel">
+                    <h2><i class="fas fa-arrow-up" style="color:var(--danger)"></i> Categorias de Despesa</h2>
+                    <div class="category-input-group">
+                        <input type="text" id="new-cat-expense" placeholder="Nova categoria de despesa...">
+                        <button class="btn-add-cat" onclick="addCategory('expense')"><i
+                                class="fas fa-plus"></i></button>
+                    </div>
+                    <ul id="list-cat-expense" class="category-list"></ul>
+                </div>
+                <div class="panel">
+                    <h2><i class="fas fa-arrow-down" style="color:var(--success)"></i> Categorias de Receita</h2>
+                    <div class="category-input-group">
+                        <input type="text" id="new-cat-income" placeholder="Nova categoria de receita...">
+                        <button class="btn-add-cat" onclick="addCategory('income')"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <ul id="list-cat-income" class="category-list"></ul>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <!-- ÁREA DE IMPRESSÃO (Oculta na tela normal) -->
-    <div id="printable-report" class="print-only">
+    <!-- ÁREA DE IMPRESSÃO (Mantida) -->
+    <div id="printable-list" class="print-container">
         <div class="print-header">
-            <h1>Relatório Financeiro</h1>
-            <p>Gerado em: <span id="print-date"></span></p>
+            <h1>Relatório Detalhado</h1>
+            <p id="print-list-period">Período: Semanal</p>
+            <p style="font-size:10px; color:#666;">Gerado em: <span class="print-date-fill"></span></p>
         </div>
-
-        <div class="print-summary">
-            <div class="p-card">
-                <span>Receitas</span>
-                <strong id="p-total-inc" style="color:var(--success)">R$ 0,00</strong>
-            </div>
-            <div class="p-card">
-                <span>Despesas</span>
-                <strong id="p-total-exp" style="color:var(--danger)">R$ 0,00</strong>
-            </div>
-            <div class="p-card">
-                <span>Saldo</span>
-                <strong id="p-total-bal">R$ 0,00</strong>
-            </div>
+        <div class="print-summary-row">
+            <div class="p-card"><span>Receitas</span><strong id="pl-inc" style="color:var(--success)"></strong></div>
+            <div class="p-card"><span>Despesas</span><strong id="pl-exp" style="color:var(--danger)"></strong></div>
+            <div class="p-card"><span>Saldo</span><strong id="pl-bal"></strong></div>
         </div>
-
         <table class="print-table">
             <thead>
                 <tr>
@@ -202,17 +280,43 @@
                     <th style="text-align:right">Valor</th>
                 </tr>
             </thead>
-            <tbody id="print-table-body">
-                <!-- Preenchido via JS -->
-            </tbody>
+            <tbody id="print-table-body"></tbody>
         </table>
+    </div>
 
-        <div class="print-footer">
-            <p>Gestor Financeiro - FinPy</p>
+    <div id="printable-dashboard" class="print-container">
+        <div class="print-header">
+            <h1>Relatório Executivo</h1>
+            <p id="print-dash-period">Resumo Anual</p>
+            <p style="font-size:10px; color:#666;">Gerado em: <span class="print-date-fill"></span></p>
+        </div>
+        <div class="print-summary-row big">
+            <div class="p-card"><span>Receita Total</span><strong id="pd-inc" style="color:var(--success)"></strong>
+            </div>
+            <div class="p-card"><span>Despesa Total</span><strong id="pd-exp" style="color:var(--danger)"></strong>
+            </div>
+            <div class="p-card"><span>Resultado</span><strong id="pd-bal"></strong></div>
+        </div>
+        <div class="print-section">
+            <h3>Despesas por Categoria</h3>
+            <div id="print-cat-bars" class="print-bars-container"></div>
+        </div>
+        <div class="print-section">
+            <h3>Evolução Mensal</h3>
+            <table class="print-table compact">
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th style="text-align:right">Entrada</th>
+                        <th style="text-align:right">Saída</th>
+                        <th style="text-align:right">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody id="print-month-body"></tbody>
+            </table>
         </div>
     </div>
 
-    <!-- JS Externo -->
     <script src="script.js"></script>
 </body>
 

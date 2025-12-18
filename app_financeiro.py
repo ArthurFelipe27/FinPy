@@ -2,12 +2,18 @@ import webview
 import json
 import os
 import uuid
-import csv  # <--- Adicionado
+import csv
 from datetime import datetime
 
 # --- CONFIGURAÇÕES E DADOS (BACKEND) ---
 
 DATA_FILE = 'dados_financeiros.json'
+
+# Categorias Padrão (usadas na criação do arquivo)
+DEFAULT_CATEGORIES = {
+    "expense": ['Alimentação', 'Lazer', 'Básico', 'Transporte', 'Saúde', 'Educação', 'Moradia', 'Outro'],
+    "income": ['Salário', 'Freelancer', 'Investimentos', 'Presente', 'Vendas', 'Outro']
+}
 
 class FinanceApi:
     def __init__(self):
@@ -19,12 +25,13 @@ class FinanceApi:
             initial_data = {
                 "transactions": [],
                 "goals": {},
+                "categories": DEFAULT_CATEGORIES,
                 "settings": {"currency": "BRL"}
             }
             with open(DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(initial_data, f)
+                json.dump(initial_data, f, indent=4)
         else:
-            # Migração simples: garante que a chave 'goals' existe em arquivos antigos
+            # Migração: garante que 'categories' existe em arquivos antigos
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 try:
                     data = json.load(f)
@@ -32,24 +39,28 @@ class FinanceApi:
                     data = {}
             
             changed = False
-            if "goals" not in data:
-                data["goals"] = {}
+            if "categories" not in data:
+                data["categories"] = DEFAULT_CATEGORIES
                 changed = True
+            
+            # Garante integridade das outras chaves
             if "transactions" not in data:
                 data["transactions"] = []
                 changed = True
-                
+            if "goals" not in data:
+                data["goals"] = {}
+                changed = True
+
             if changed:
                 with open(DATA_FILE, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=4)
 
     def get_data(self):
-        # Retorna tudo de uma vez para reduzir chamadas
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             try:
                 return json.load(f)
             except:
-                return {"transactions": [], "goals": {}}
+                return {"transactions": [], "goals": {}, "categories": DEFAULT_CATEGORIES}
 
     def get_transactions(self):
         data = self.get_data()
@@ -106,8 +117,6 @@ class FinanceApi:
             json.dump(content, f, indent=4)
         return {"status": "success", "id": t_id}
 
-    # --- Novas Funções de Metas ---
-
     def set_goal(self, category, limit):
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             content = json.load(f)
@@ -118,10 +127,24 @@ class FinanceApi:
             json.dump(content, f, indent=4)
         return {"status": "success"}
 
-    # --- Função de Exportação ---
+    # --- GERENCIAMENTO DE CATEGORIAS ---
+
+    def update_categories(self, income_cats, expense_cats):
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            content = json.load(f)
+        
+        content["categories"] = {
+            "income": income_cats,
+            "expense": expense_cats
+        }
+        
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(content, f, indent=4)
+        return {"status": "success"}
+
+    # --- EXPORTAÇÃO ---
     def export_csv(self):
         try:
-            # Pega a janela ativa para abrir o diálogo de salvar
             if len(webview.windows) > 0:
                 active_window = webview.windows[0]
                 file_path = active_window.create_file_dialog(
@@ -133,22 +156,16 @@ class FinanceApi:
                 return {"status": "error", "message": "Janela não encontrada"}
             
             if file_path:
-                # Em algumas versões/OS retorna tupla/lista
                 if isinstance(file_path, (tuple, list)):
                     file_path = file_path[0]
                 
                 data = self.get_transactions()
                 
-                # Escreve o CSV
                 with open(file_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                    # 'utf-8-sig' ajuda o Excel a reconhecer acentos corretamente
-                    writer = csv.writer(csvfile, delimiter=';') # Ponto e vírgula é melhor para Excel BR
-                    
-                    # Cabeçalho Limpo e Bonito
+                    writer = csv.writer(csvfile, delimiter=';')
                     writer.writerow(['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)'])
                     
                     for t in data:
-                        # 1. Formatar Data (YYYY-MM-DD -> DD/MM/YYYY)
                         data_raw = t.get('date', '')
                         data_formatada = data_raw
                         try:
@@ -156,21 +173,18 @@ class FinanceApi:
                                 dt = datetime.strptime(data_raw, '%Y-%m-%d')
                                 data_formatada = dt.strftime('%d/%m/%Y')
                         except:
-                            pass # Mantém original se falhar a conversão
+                            pass 
 
-                        # 2. Traduzir Tipo
                         tipo_raw = t.get('type', '')
                         tipo_traduzido = 'Receita' if tipo_raw == 'income' else ('Despesa' if tipo_raw == 'expense' else tipo_raw)
                         
-                        # 3. Formatar Valor (R$ 0,00)
                         valor = float(t.get('amount', 0))
                         valor_formatado = f"{valor:.2f}".replace('.', ',')
 
-                        # 4. Escrever linha (Sem ID)
                         writer.writerow([
                             data_formatada,
                             tipo_traduzido,
-                            t.get('category', '').title(), # Capitaliza primeira letra
+                            t.get('category', '').title(),
                             t.get('description', ''),
                             valor_formatado
                         ])
@@ -179,8 +193,6 @@ class FinanceApi:
             return {"status": "cancelled"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
-
-# --- INICIALIZAÇÃO ---
 
 if __name__ == '__main__':
     api = FinanceApi()
