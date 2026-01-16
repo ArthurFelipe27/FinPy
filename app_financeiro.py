@@ -212,4 +212,4 @@ if __name__ == '__main__':
             min_size=(950, 650),
             js_api=api
         )
-        webview.start(debug=True)
+        webview.start(debug=False)
