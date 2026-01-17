@@ -110,10 +110,7 @@ function resolveConfirm(result) {
     }
 }
 
-// Subscrição dos Prompts Nativos
 async function promptSetGoal(category, currentLimit) {
-    // Usamos o prompt nativo aqui pois pedir input num modal custom é mais complexo, 
-    // mas se quiser podemos fazer um modal de input depois.
     const newVal = prompt(`Definir limite mensal para ${category} (R$):`, currentLimit || 0);
     if (newVal !== null) {
         const limit = parseFloat(newVal);
