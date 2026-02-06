@@ -1,132 +1,168 @@
-# FinPy - Gerenciador Financeiro 💰
+# 💰 FinPy – Gerenciador Financeiro Pessoal
 
-FinPy é uma aplicação desktop leve e moderna para gerenciamento de finanças pessoais. Desenvolvido com uma combinação poderosa de Python no backend (para lógica e persistência de dados) e tecnologias web (HTML5, CSS3, JavaScript) no frontend, renderizados através do pywebview.
+![GitHub repo size](https://img.shields.io/github/repo-size/ArthurFelipe27/finpy?style=for-the-badge)
+![GitHub language count](https://img.shields.io/github/languages/count/ArthurFelipe27/finpy?style=for-the-badge)
+![GitHub last commit](https://img.shields.io/github/last-commit/ArthurFelipe27/finpy?style=for-the-badge)
+![License](https://img.shields.io/github/license/seu-usuario/finpy?style=for-the-badge)
 
-O objetivo do FinPy é oferecer uma experiência de usuário fluida, com uma interface bonita e funcionalidades práticas para o dia a dia, sem a necessidade de configurar bancos de dados complexos.
+> **FinPy** é uma aplicação desktop leve e moderna para **gerenciamento de finanças pessoais**, desenvolvida em **Python** com interface Web integrada via **PyWebView**. O sistema oferece controle financeiro prático, visual e sem necessidade de bancos de dados complexos.
 
-## ✨ Funcionalidades
+---
 
-### 📊 Dashboard Interativo
+## ✨ Funcionalidades Principais
 
-Visão Geral: Cards com Saldo Total, Receitas e Despesas.
+* 📊 **Dashboard Interativo**  
+  Cards com saldo total, receitas e despesas, além de gráficos dinâmicos (Receita × Despesa e despesas por categoria) e histórico recente de transações.
 
-Gráficos Dinâmicos: Visualização de despesas por categoria ou balanço (Receita vs Despesa) usando Chart.js.
+* 📝 **Gestão de Transações**  
+  Cadastro, edição e exclusão de receitas e despesas com descrição, valor, data e categoria, através de formulários simples e intuitivos.
 
-Histórico Recente: Lista das últimas transações com fácil acesso para edição ou exclusão.
+* 🎯 **Metas e Orçamento**  
+  Definição de limites de gastos por categoria, com barras de progresso visuais que indicam o consumo da meta (verde, amarelo e vermelho).
 
-### 📝 Gestão de Transações
+* 🏷️ **Categorias Personalizáveis**  
+  Criação e remoção de categorias de Receita e Despesa conforme a necessidade do usuário.
 
-Adicione receitas e despesas com descrição, valor, data e categoria.
+* 🖨️ **Relatórios e Exportação**  
+  Exportação de dados em **CSV** e layouts otimizados para impressão de relatórios semanais, mensais ou anuais.
 
-Edição e remoção de lançamentos existentes.
+---
 
-Interface de formulário limpa e intuitiva.
+## 💻 Pré-requisitos
 
-### 🎯 Metas e Orçamento
+Antes de iniciar, certifique-se de ter instalado:
 
-Defina limites de gastos (metas) por categoria.
+* 🐍 **Python 3.x**
+* 📦 **Pip** (gerenciador de pacotes do Python)
+* 💻 Sistema operacional **Windows, Linux ou macOS**
 
-Barras de Progresso: Acompanhe visualmente o quanto você já gastou de cada meta (verde, amarelo e vermelho conforme o limite se aproxima).
+---
 
-### 🏷️ Categorias Personalizáveis
+## 🚀 Tecnologias Utilizadas
 
-O sistema já vem com categorias padrão, mas você pode criar ou excluir categorias de Receita e Despesa conforme sua necessidade.
+### 🧩 Backend
 
-### 🖨️ Relatórios e Exportação
+* 🐍 **Python 3**
+* 🪟 **PyWebView** — Janela desktop e ponte Python ↔ JavaScript
+* 📁 **JSON** — Persistência de dados local
+* 🧰 **uuid, csv, datetime** — Bibliotecas padrão do Python
 
-Exportação CSV: Exporte todos os seus dados para usar em planilhas (Excel/Google Sheets).
+### 🎨 Frontend
 
-Modo de Impressão: Layouts CSS específicos para impressão de relatórios Semanais, Mensais ou Anuais.
+* 🧱 **HTML5**
+* 💅 **CSS3** — Variáveis CSS, Flexbox e Grid
+* ⚡ **JavaScript (Vanilla)**
 
-## 🛠️ Tecnologias Utilizadas
+### 📊 Visualização e UI
 
-**Backend: Python 3**
+* 📈 **Chart.js** — Gráficos dinâmicos
+* 🎨 **FontAwesome** — Ícones
+* 🔤 **Google Fonts** — Fonte *Outfit*
 
-pywebview: Para criar a janela da aplicação e comunicar Python com JS.
+---
 
-json: Para persistência de dados local (banco de dados em arquivo).
+## ⚙️ Instalação e Execução
 
-uuid, csv, datetime: Bibliotecas padrão.
+### 1️⃣ Clone o repositório
 
-**Frontend:**
+```bash
+git clone https://github.com/seu-usuario/finpy.git
+cd finpy
+```
 
-HTML5 & CSS3 (Variáveis CSS, Flexbox, Grid).
+---
 
-JavaScript (Vanilla).
+### 2️⃣ Instale as dependências
 
-Chart.js: Para renderização dos gráficos.
-
-FontAwesome: Para ícones.
-
-Google Fonts: Fonte 'Outfit'.
-
-## 🚀 Instalação e Uso
-
-**Pré-requisitos**
-
-Certifique-se de ter o Python 3.x instalado em sua máquina.
-
-**Passo a Passo**
-
-1. Clone o repositório:
-
-``git clone [https://github.com/seu-usuario/finpy.git](https://github.com/seu-usuario/finpy.git)
-cd finpy``
-
-
-2. Instale as dependências:
-O projeto utiliza principalmente o pywebview. Dependendo do seu sistema operacional, pode ser necessário instalar dependências de GUI específicas (no Windows geralmente instala direto).
-``
+```bash
 pip install pywebview
-``
+```
 
-3. Execute a aplicação:
-``
+> ⚠️ Dependendo do sistema operacional, pode ser necessário instalar dependências adicionais de GUI.
+
+---
+
+### 3️⃣ Execute a aplicação
+
+```bash
 python app_financeiro.py
-``
+```
 
-A janela do aplicativo se abrirá e um arquivo dados_financeiros.json será criado automaticamente na primeira execução para salvar seus dados.
+Na primeira execução, o arquivo `dados_financeiros.json` será criado automaticamente para armazenar os dados do usuário.
 
-## 📂 Estrutura do Projeto
+---
 
-finpy/  
-│  
-├── app_financeiro.py    # Backend principal (Lógica, API e Inicialização)  
-├── dados_financeiros.json # Banco de dados local (gerado automaticamente)  
-├── favicon.ico          # Ícone da aplicação  
-│  
-└── web/                 # Interface do Usuário  
-    ├── index.html       # Estrutura HTML  
-    ├── style.css        # Estilos e temas  
-    └── script.js        # Lógica de frontend e comunicação com Python  
+## 📂 Estrutura de Pastas
 
+```text
+finpy/
+├── app_financeiro.py         # Backend principal (lógica, API e inicialização)
+├── dados_financeiros.json   # Banco de dados local (gerado automaticamente)
+├── favicon.ico              # Ícone da aplicação
+└── web/                     # Interface do usuário
+    ├── index.html           # Estrutura HTML
+    ├── style.css            # Estilos e temas
+    └── script.js            # Lógica frontend e comunicação com Python
+```
+
+---
 
 ## 🎨 Layout e Design
 
-O FinPy utiliza um tema moderno com tons de roxo (#3c096c) e layouts responsivos que se adaptam ao tamanho da janela.
+* 🎨 Tema moderno com tons de roxo (**#3c096c**)
+* 📐 Layout responsivo adaptável ao tamanho da janela
+* 📂 **Sidebar** para navegação entre Dashboard, Metas e Configurações
+* 🔔 **Modais personalizados** para alertas e confirmações
+* 🎯 Feedback visual por cores:
+  * 🟢 Receitas / dentro da meta  
+  * 🔴 Despesas / meta estourada  
 
-Sidebar: Navegação rápida entre Dashboard, Metas e Configurações.
+---
 
-Modais: Alertas e confirmações personalizados (substituindo os popups nativos do navegador).
+## 📸 Demonstração
 
-Feedback Visual: Cores para indicar status financeiro (Verde para receitas/dentro da meta, Vermelho para despesas/meta estourada).
+### Dashboard Principal
+<img width="1905" height="944" alt="Captura de tela 2026-02-05 230135" src="https://github.com/user-attachments/assets/f8c316b1-f8d1-43a9-8195-57160bc87ba2" />
 
-## 🤝 Contribuindo
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir Issues ou enviar Pull Requests.
+### Metas e Orçamento
+<img width="1906" height="992" alt="Captura de tela 2026-02-05 230242" src="https://github.com/user-attachments/assets/23cd0290-623d-4317-a1ba-42b28199bfee" />
 
-1. Faça um Fork do projeto.
 
-2. Crie uma Branch para sua Feature (``git checkout -b feature/NovaFeature``).
+---
 
-3. Faça o Commit (``git commit -m 'Adicionando nova feature'``).
+## 🤝 Contribuição
 
-4. Faça o Push (``git push origin feature/NovaFeature``).
+Contribuições são bem-vindas!
 
-5. Abra um Pull Request.
+1. Faça um **Fork** do projeto  
+2. Crie uma branch para sua feature  
+   ```bash
+   git checkout -b feature/NovaFeature
+   ```
+3. Faça o commit  
+   ```bash
+   git commit -m "Adicionando nova feature"
+   ```
+4. Faça o push  
+   ```bash
+   git push origin feature/NovaFeature
+   ```
+5. Abra um **Pull Request**
 
-## 📄 Licença
+---
 
-Este projeto está sob a licença MIT. Sinta-se livre para usar e modificar.
+## 🧑‍💻 Autor
 
-Desenvolvido por Arthur Felipe.
+**Arthur Felipe**  
+🌐 GitHub: https://github.com/ArthurFelipe27  
+
+---
+
+## 📝 Licença
+
+Este projeto está licenciado sob a **Licença MIT**.
+
+---
+
+💡 *Projeto desenvolvido para demonstrar um gerenciador financeiro pessoal moderno, utilizando Python e tecnologias web integradas em uma aplicação desktop.*
