@@ -1,0 +1,8 @@
+
+output/
+
+.env
+.env.*
+
+
+dados_financeiroa.json

@@ -1,362 +1,198 @@
 let allTransactions = [];
 let allGoals = {};
 let categories = { expense: [], income: [] };
-
-let currentFilter = 'all';
-let currentChartMode = 'balance';
-let currentView = 'dashboard';
 let chartInstance = null;
 
-// Variável para armazenar a resolução da Promise de confirmação
-let confirmResolver = null;
+// Estados
+let currentFilter = 'monthly';
+let currentChartMode = 'balance';
+let editingId = null; // Controla se estamos editando
 
-const categoryColors = [
-    '#3c096c', '#7b2cbf', '#9d4edd', '#c77dff',
-    '#e0aaff', '#ff9e00', '#ff006e', '#3a86ff',
-    '#2ec4b6', '#00b4d8', '#e63946', '#fb8500'
+const purplePalette = [
+    '#3c096c', '#5a189a', '#7b2cbf', '#9d4edd', '#c77dff', '#e0aaff', '#f3d9fa'
 ];
 
-// --- INICIALIZAÇÃO ---
-
-window.addEventListener('pywebviewready', function () {
-    refreshData();
-});
-
-window.onload = function () {
+window.addEventListener('pywebviewready', refreshData);
+window.onload = () => {
     startClock();
-    const dateInput = document.getElementById('t-date');
-    if (dateInput) dateInput.valueAsDate = new Date();
-
+    document.getElementById('t-date').valueAsDate = new Date();
     if (!window.pywebview) {
-        console.log("Modo navegador (teste sem backend)");
-        categories = { expense: ['Alimentação', 'Teste'], income: ['Salário'] };
+        categories = { expense: ['Lazer', 'Casa'], income: ['Salário'] };
         updateCategories();
     }
 };
 
 function startClock() {
-    function update() {
+    setInterval(() => {
         const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('pt-BR');
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-date').innerText = now.toLocaleDateString('pt-BR', options);
-    }
-    update();
-    setInterval(update, 1000);
+        document.getElementById('clock').innerText = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('current-date').innerText = now.toLocaleDateString('pt-BR');
+    }, 1000);
 }
 
-function updateCategories(selectedCategory = null) {
-    const typeSelect = document.getElementById('t-type');
-    const catSelect = document.getElementById('t-category');
-    if (!typeSelect || !catSelect) return;
-    const type = typeSelect.value;
-    catSelect.innerHTML = '';
-    if (categories[type]) {
-        categories[type].forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat;
-            option.innerText = cat;
-            if (selectedCategory && selectedCategory === cat) option.selected = true;
-            catSelect.appendChild(option);
-        });
-    }
+function setView(viewId) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+    document.getElementById('view-' + viewId).classList.remove('hidden');
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    if (event) event.currentTarget.classList.add('active');
+
+    const titles = { 'dashboard': 'Visão Geral', 'analysis': 'Análise & IA', 'simulation': 'Simulação', 'goals': 'Metas', 'categories': 'Categorias' };
+    document.getElementById('page-title').innerText = titles[viewId] || 'FinPy';
+
+    // Reset ao mudar de tela
+    cancelEdit();
+
+    if (viewId === 'dashboard') renderDashboard();
+    if (viewId === 'analysis') renderAnalysis();
+    if (viewId === 'goals') renderGoalsPage();
+    if (viewId === 'categories') renderCategoriesPage();
 }
 
 async function refreshData() {
-    try {
-        if (window.pywebview) {
-            const data = await pywebview.api.get_data();
-            allTransactions = data.transactions;
-            allGoals = data.goals || {};
-            if (data.categories) categories = data.categories;
-            updateCategories();
-            if (currentView === 'dashboard') {
-                render();
-                if (currentChartMode === 'goals') renderGoals();
-            } else if (currentView === 'goals') {
-                renderDetailedGoalsPage();
-            } else if (currentView === 'categories') {
-                renderCategoriesPage();
-            }
-        }
-    } catch (e) { console.error(e); }
+    if (window.pywebview) {
+        const data = await pywebview.api.get_data();
+        allTransactions = data.transactions;
+        allGoals = data.goals || {};
+        categories = data.categories;
+
+        const insights = await pywebview.api.get_dashboard_insights();
+        updateExecutiveCards(insights);
+        renderAlerts(insights.alerts);
+        window.currentInsights = insights;
+
+        updateCategories();
+
+        if (!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
+        if (!document.getElementById('view-goals').classList.contains('hidden')) renderGoalsPage();
+    }
 }
 
-// --- HELPERS DE ALERTAS PERSONALIZADOS ---
+function updateExecutiveCards(data) {
+    // CORREÇÃO 1: Usa o saldo acumulado total vindo do Backend
+    const totalBal = data.cumulative_balance;
+    document.getElementById('total-balance').innerText = `R$ ${totalBal.toFixed(2)}`;
+    document.getElementById('total-balance').style.color = totalBal >= 0 ? 'var(--primary-dark)' : 'var(--danger)';
 
-function showAlert(message, title = "Atenção") {
-    document.getElementById('alert-title').innerText = title;
-    document.getElementById('alert-message').innerText = message;
-    document.getElementById('custom-alert').classList.remove('hidden');
+    const sr = data.savings_rate;
+    document.getElementById('savings-rate').innerText = `${sr.toFixed(1)}%`;
+    document.getElementById('savings-rate').style.color = sr > 20 ? 'var(--success)' : (sr > 0 ? 'var(--warning)' : 'var(--danger)');
+    document.getElementById('top-category').innerText = data.top_category;
 }
 
-function closeAlert() {
-    document.getElementById('custom-alert').classList.add('hidden');
-}
-
-function showConfirm(message) {
-    return new Promise((resolve) => {
-        document.getElementById('confirm-message').innerText = message;
-        document.getElementById('custom-confirm').classList.remove('hidden');
-        confirmResolver = resolve;
+function renderAlerts(alerts) {
+    const area = document.getElementById('alerts-area');
+    area.innerHTML = '';
+    if (!alerts || alerts.length === 0) { area.classList.add('hidden'); return; }
+    area.classList.remove('hidden');
+    alerts.forEach(a => {
+        const div = document.createElement('div');
+        div.className = `alert-box alert-${a.type}`;
+        div.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${a.msg}`;
+        area.appendChild(div);
     });
 }
 
-function resolveConfirm(result) {
-    document.getElementById('custom-confirm').classList.add('hidden');
-    if (confirmResolver) {
-        confirmResolver(result);
-        confirmResolver = null;
-    }
-}
+function renderDashboard() {
+    const list = document.getElementById('transaction-list');
+    list.innerHTML = '';
 
-async function promptSetGoal(category, currentLimit) {
-    const newVal = prompt(`Definir limite mensal para ${category} (R$):`, currentLimit || 0);
-    if (newVal !== null) {
-        const limit = parseFloat(newVal);
-        if (!isNaN(limit)) {
-            if (window.pywebview) {
-                await pywebview.api.set_goal(category, limit);
-                refreshData();
-            }
-        }
-    }
-}
-
-// --- NAVEGAÇÃO ---
-
-function setFilter(filter) {
-    currentFilter = filter;
-    currentView = 'dashboard';
-    updateNavUI();
-    document.getElementById('view-dashboard').classList.remove('hidden');
-    document.getElementById('view-goals-page').classList.add('hidden');
-    document.getElementById('view-categories-page').classList.add('hidden');
-    document.getElementById('page-subtitle').innerText = "Acompanhe suas finanças";
-    const titles = { 'all': 'Visão Geral', 'weekly': 'Relatório Semanal', 'monthly': 'Relatório Mensal', 'annual': 'Relatório Anual' };
-    document.getElementById('page-title').innerText = titles[filter];
-    render();
-}
-
-function showGoalsView() {
-    currentView = 'goals';
-    updateNavUI();
-    document.getElementById('view-dashboard').classList.add('hidden');
-    document.getElementById('view-categories-page').classList.add('hidden');
-    document.getElementById('view-goals-page').classList.remove('hidden');
-    document.getElementById('page-title').innerText = "Metas de Gastos";
-    document.getElementById('page-subtitle').innerText = "Planejamento mensal por categoria";
-    renderDetailedGoalsPage();
-}
-
-function showCategoriesView() {
-    currentView = 'categories';
-    updateNavUI();
-    document.getElementById('view-dashboard').classList.add('hidden');
-    document.getElementById('view-goals-page').classList.add('hidden');
-    document.getElementById('view-categories-page').classList.remove('hidden');
-    document.getElementById('page-title').innerText = "Gerenciar Categorias";
-    document.getElementById('page-subtitle').innerText = "Adicione ou remova categorias personalizadas";
-    renderCategoriesPage();
-}
-
-function updateNavUI() {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    if (event && event.currentTarget) event.currentTarget.classList.add('active');
-}
-
-// --- CRUD CATEGORIAS ---
-
-function renderCategoriesPage() {
-    const listExp = document.getElementById('list-cat-expense');
-    const listInc = document.getElementById('list-cat-income');
-    listExp.innerHTML = '';
-    listInc.innerHTML = '';
-    categories.expense.forEach(cat => listExp.appendChild(createCategoryItem(cat, 'expense')));
-    categories.income.forEach(cat => listInc.appendChild(createCategoryItem(cat, 'income')));
-}
-
-function createCategoryItem(name, type) {
-    const li = document.createElement('li');
-    li.className = 'category-item-row';
-    li.innerHTML = `<span>${name}</span><button class="btn-del-cat" onclick="removeCategory('${type}', '${name}')"><i class="fas fa-trash"></i></button>`;
-    return li;
-}
-
-async function addCategory(type) {
-    const inputId = type === 'expense' ? 'new-cat-expense' : 'new-cat-income';
-    const input = document.getElementById(inputId);
-    const val = input.value.trim();
-    if (!val) return;
-    const formattedName = val.charAt(0).toUpperCase() + val.slice(1);
-    if (categories[type].includes(formattedName)) {
-        showAlert("Esta categoria já existe!", "Erro");
-        return;
-    }
-    categories[type].push(formattedName);
-    input.value = '';
-    await saveCategories();
-    renderCategoriesPage();
-}
-
-async function removeCategory(type, name) {
-    if (await showConfirm(`Remover categoria "${name}"? Transações antigas manterão este nome.`)) {
-        categories[type] = categories[type].filter(c => c !== name);
-        await saveCategories();
-        renderCategoriesPage();
-    }
-}
-
-async function saveCategories() {
-    if (window.pywebview) {
-        await pywebview.api.update_categories(categories.income, categories.expense);
-        updateCategories();
-    }
-}
-
-// --- RENDER DASHBOARD ---
-
-function filterTransactions(transactions) {
     const now = new Date();
-    return transactions.filter(t => {
-        const parts = t.date.split('-');
-        const tDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    let filtered = allTransactions.filter(t => {
         if (currentFilter === 'all') return true;
-        if (currentFilter === 'weekly') {
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(now.getDate() - 7);
-            return tDate >= oneWeekAgo;
-        }
-        if (currentFilter === 'monthly') return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-        if (currentFilter === 'annual') return tDate.getFullYear() === now.getFullYear();
+        if (currentFilter === 'monthly') return t.date.startsWith(currentMonthStr);
         return true;
     });
-}
 
-function render() {
-    const filtered = filterTransactions(allTransactions);
-    const listEl = document.getElementById('transaction-list');
-    listEl.innerHTML = '';
-    const countBadge = document.getElementById('transaction-count');
-    if (countBadge) countBadge.innerText = `${filtered.length} itens`;
-
-    let totalInc = 0;
-    let totalExp = 0;
     filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    if (filtered.length === 0) listEl.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:30px; font-size:14px;">Nenhum lançamento encontrado.</div>';
+    if (filtered.length === 0) list.innerHTML = '<div style="text-align:center; padding:20px; color:#999">Sem lançamentos neste período.</div>';
 
     filtered.forEach(t => {
-        if (t.type === 'income') totalInc += t.amount; else totalExp += t.amount;
         const parts = t.date.split('-');
-        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const isInst = t.installment_index ? `<span class="badge-inst">${t.installment_index}/${t.installment_total}</span>` : '';
         const div = document.createElement('div');
         div.className = 'transaction-item';
         div.innerHTML = `
-            <div class="t-info"><div style="display:flex; align-items:center; gap:8px;"><span class="t-desc">${t.description}</span><span class="t-cat-badge">${t.category || 'Geral'}</span></div><span class="t-date">${dateObj.toLocaleDateString('pt-BR')}</span></div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="t-amount ${t.type === 'income' ? 'amount-inc' : 'amount-exp'}">${t.type === 'income' ? '+' : '-'} R$ ${t.amount.toFixed(2)}</span>
-                <button class="btn-action btn-edit" onclick="editTransaction('${t.id}')"><i class="fas fa-pencil-alt"></i></button>
-                <button class="btn-action btn-delete" onclick="deleteTransaction('${t.id}')"><i class="fas fa-trash"></i></button>
+            <div><div style="font-weight:600">${t.description} ${isInst}</div><div style="font-size:11px; color:#999">${parts[2]}/${parts[1]} • ${t.category}</div></div>
+            <div style="display:flex; gap:10px; align-items:center">
+                <span class="${t.type === 'income' ? 'val-inc' : 'val-exp'}">${t.type === 'income' ? '+' : '-'} R$ ${parseFloat(t.amount).toFixed(2)}</span>
+                <button onclick="editTransaction('${t.id}')" class="btn-icon edit" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                <button onclick="delTrans('${t.id}')" class="btn-icon del" title="Excluir"><i class="fas fa-trash"></i></button>
             </div>
         `;
-        listEl.appendChild(div);
+        list.appendChild(div);
     });
 
-    document.getElementById('total-income').innerText = `R$ ${totalInc.toFixed(2)}`;
-    document.getElementById('total-expense').innerText = `R$ ${totalExp.toFixed(2)}`;
-    const balance = totalInc - totalExp;
-    const balEl = document.getElementById('total-balance');
-    balEl.innerText = `R$ ${balance.toFixed(2)}`;
-    balEl.style.color = balance >= 0 ? 'var(--primary-dark)' : 'var(--danger)';
-
-    if (currentChartMode !== 'goals') updateChart(totalInc, totalExp, filtered);
+    renderChartWidget(filtered);
 }
 
-// --- RENDER METAS DETALHADAS ---
-function renderDetailedGoalsPage() {
-    const container = document.getElementById('detailed-goals-grid');
-    container.innerHTML = '';
-    const now = new Date();
-    const currentMonthExpenses = allTransactions.filter(t => {
-        const parts = t.date.split('-');
-        const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
-        return t.type === 'expense' && tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-    });
-    const spending = {};
-    currentMonthExpenses.forEach(t => spending[t.category] = (spending[t.category] || 0) + t.amount);
-
-    categories['expense'].forEach(cat => {
-        const spent = spending[cat] || 0;
-        const limit = allGoals[cat] || 0;
-        const percent = limit > 0 ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
-        let status = 'Dentro da meta', statusColor = 'var(--success)', barClass = 'fill-success';
-        if (limit === 0) { status = 'Sem meta definida'; statusColor = 'var(--text-muted)'; }
-        else if (percent > 100) { status = 'Meta estourada!'; statusColor = 'var(--danger)'; barClass = 'fill-danger'; }
-        else if (percent > 75) { status = 'Atenção'; statusColor = 'var(--warning)'; barClass = 'fill-warning'; }
-        const remaining = limit > 0 ? Math.max(0, limit - spent) : 0;
-
-        const card = document.createElement('div');
-        card.className = 'goal-card-detailed';
-        card.innerHTML = `
-            <div class="goal-card-header"><span class="goal-card-title">${cat}</span><button class="btn-icon-small" onclick="promptSetGoal('${cat}', ${limit})"><i class="fas fa-cog"></i></button></div>
-            <div class="goal-numbers"><div><span class="goal-label">Gasto</span><span class="goal-amount">R$ ${spent.toFixed(2)}</span></div><div style="text-align:right"><span class="goal-label">Limite</span><span class="goal-amount">R$ ${limit.toFixed(2)}</span></div></div>
-            <div class="progress-track large"><div class="progress-fill ${barClass}" style="width: ${Math.min(percent, 100)}%"></div></div>
-            <div class="goal-footer"><span style="color: ${statusColor}; font-weight: 500;">${status}</span><span>Restam: <b>R$ ${remaining.toFixed(2)}</b></span></div>
-        `;
-        container.appendChild(card);
-    });
-}
-
-// --- CRUD TRANSAÇÕES ---
-
-async function handleTransactionSubmit(e) {
-    e.preventDefault();
-    const id = document.getElementById('t-id').value;
-    const type = document.getElementById('t-type').value;
-    const category = document.getElementById('t-category').value;
-    const desc = document.getElementById('t-desc').value;
-    const amount = document.getElementById('t-amount').value;
-    const date = document.getElementById('t-date').value;
-
-    if (window.pywebview) {
-        if (id) await pywebview.api.update_transaction(id, type, category, amount, desc, date);
-        else await pywebview.api.add_transaction(type, category, amount, desc, date);
-        cancelEdit();
-        refreshData();
-    }
-}
-
+// --- EDIÇÃO DE TRANSAÇÃO (NOVO) ---
 function editTransaction(id) {
-    const t = allTransactions.find(trans => trans.id === id);
+    const t = allTransactions.find(item => item.id === id);
     if (!t) return;
-    document.getElementById('t-id').value = t.id;
+
+    editingId = id;
+
+    // Preenche o formulário
     document.getElementById('t-type').value = t.type;
-    updateCategories(t.category);
+    updateCategories(); // Atualiza lista baseada no tipo
+    document.getElementById('t-category').value = t.category;
     document.getElementById('t-amount').value = t.amount;
-    document.getElementById('t-desc').value = t.description;
+    document.getElementById('t-desc').value = t.description.replace(/\s\(\d+\/\d+\)$/, ''); // Remove texto da parcela se houver
     document.getElementById('t-date').value = t.date;
-    document.getElementById('form-title').innerHTML = '<i class="fas fa-pencil-alt"></i> Editar Transação';
-    document.getElementById('btn-submit').innerHTML = 'Atualizar <i class="fas fa-sync-alt"></i>';
+
+    // UI Changes
+    document.getElementById('form-title').innerHTML = '<i class="fas fa-edit"></i> Editar Lançamento';
+    document.getElementById('btn-submit').innerText = 'Atualizar';
     document.getElementById('btn-cancel').classList.remove('hidden');
-    document.querySelector('.form-panel').style.borderColor = 'var(--primary)';
+
+    // Desabilita parcelamento na edição (complexidade extra de backend)
+    document.getElementById('installment-group').classList.add('hidden');
+
+    // Scroll para o form
+    document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth' });
 }
 
 function cancelEdit() {
+    editingId = null;
     document.getElementById('trans-form').reset();
-    document.getElementById('t-id').value = '';
     document.getElementById('t-date').valueAsDate = new Date();
-    document.getElementById('form-title').innerHTML = '<i class="fas fa-plus-circle"></i> Nova Transação';
-    document.getElementById('btn-submit').innerHTML = 'Salvar <i class="fas fa-check"></i>';
+
+    // UI Reset
+    document.getElementById('form-title').innerHTML = '<i class="fas fa-plus-circle"></i> Novo Lançamento';
+    document.getElementById('btn-submit').innerText = 'Salvar';
     document.getElementById('btn-cancel').classList.add('hidden');
-    document.querySelector('.form-panel').style.borderColor = 'rgba(0,0,0,0.03)';
-    updateCategories();
+
+    // Restaura checkbox de parcelamento
+    document.getElementById('installment-group').classList.remove('hidden');
+    document.getElementById('is-installment').checked = false;
+    toggleInstallmentInput();
 }
 
-async function deleteTransaction(id) {
-    if (document.getElementById('t-id').value === id) cancelEdit();
-    if (await showConfirm('Deseja realmente excluir este registro?')) {
-        await pywebview.api.delete_transaction(id);
+async function handleTransactionSubmit(e) {
+    e.preventDefault();
+    const type = document.getElementById('t-type').value;
+    const cat = document.getElementById('t-category').value;
+    const amount = document.getElementById('t-amount').value;
+    const desc = document.getElementById('t-desc').value;
+    const date = document.getElementById('t-date').value;
+
+    if (window.pywebview) {
+        if (editingId) {
+            // MODO EDIÇÃO
+            await pywebview.api.update_transaction(editingId, type, cat, amount, desc, date);
+            showAlert("Lançamento atualizado!");
+        } else {
+            // MODO CRIAÇÃO
+            const isInstallment = document.getElementById('is-installment').checked;
+            const installments = isInstallment ? document.getElementById('t-installments').value : 1;
+            await pywebview.api.add_transaction(type, cat, amount, desc, date, installments);
+            showAlert("Lançamento salvo!");
+        }
+
+        cancelEdit(); // Reseta tudo
         refreshData();
     }
 }
@@ -364,196 +200,262 @@ async function deleteTransaction(id) {
 // --- GRÁFICOS ---
 function switchChart(mode) {
     currentChartMode = mode;
-    document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-    const index = mode === 'balance' ? 0 : mode === 'category' ? 1 : 2;
-    document.querySelectorAll('.toggle-btn')[index].classList.add('active');
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    const btns = document.querySelectorAll('.toggle-btn');
+    if (mode === 'balance') btns[0].classList.add('active');
+    if (mode === 'category') btns[1].classList.add('active');
+    if (mode === 'goals') btns[2].classList.add('active');
+    renderDashboard();
+}
 
-    const chartWrapper = document.getElementById('chart-wrapper');
-    const goalsContainer = document.getElementById('goals-container');
+function renderChartWidget(transactions) {
+    const wrapper = document.getElementById('chart-wrapper');
+    const goalsList = document.getElementById('goals-summary-list');
 
-    if (mode === 'goals') {
-        chartWrapper.classList.add('hidden');
-        goalsContainer.classList.remove('hidden');
-        renderGoals();
+    if (currentChartMode === 'goals') {
+        wrapper.classList.add('hidden');
+        goalsList.classList.remove('hidden');
+        renderGoalsSummary();
     } else {
-        goalsContainer.classList.add('hidden');
-        chartWrapper.classList.remove('hidden');
-        const filtered = filterTransactions(allTransactions);
-        let totalInc = 0, totalExp = 0;
-        filtered.forEach(t => { if (t.type === 'income') totalInc += t.amount; else totalExp += t.amount; });
-        updateChart(totalInc, totalExp, filtered);
+        goalsList.classList.add('hidden');
+        wrapper.classList.remove('hidden');
+        updateChartCanvas(transactions);
     }
 }
 
-function renderGoals() {
-    const goalsContainer = document.getElementById('goals-container');
-    goalsContainer.innerHTML = '';
-    const now = new Date();
-    const currentMonthExpenses = allTransactions.filter(t => {
-        const parts = t.date.split('-');
-        const tDate = new Date(parts[0], parts[1] - 1, parts[2]);
-        return t.type === 'expense' && tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-    });
-    const spending = {};
-    currentMonthExpenses.forEach(t => spending[t.category] = (spending[t.category] || 0) + t.amount);
-
-    categories['expense'].forEach(cat => {
-        const spent = spending[cat] || 0;
-        const limit = allGoals[cat] || 0;
-        if (limit > 0 || spent > 0) {
-            const percent = limit > 0 ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
-            let colorClass = 'fill-success';
-            if (percent > 75) colorClass = 'fill-warning';
-            if (percent > 100 || (limit === 0 && spent > 0)) colorClass = 'fill-danger';
-            const div = document.createElement('div');
-            div.className = 'goal-item';
-            div.onclick = () => promptSetGoal(cat, limit);
-            div.title = "Clique para alterar a meta";
-            div.innerHTML = `<div class="goal-header"><span>${cat}</span><span class="goal-limit">R$ ${spent.toFixed(0)} / ${limit > 0 ? 'R$ ' + limit.toFixed(0) : 'Sem limite'}</span></div><div class="progress-track"><div class="progress-fill ${colorClass}" style="width: ${Math.min(percent, 100)}%"></div></div>`;
-            goalsContainer.appendChild(div);
-        }
-    });
-    if (!goalsContainer.innerHTML) goalsContainer.innerHTML = `<div class="empty-state"><p>Nenhuma meta ou gasto este mês.</p></div>`;
-}
-
-function updateChart(income, expense, transactions) {
+function updateChartCanvas(transactions) {
     const ctx = document.getElementById('miniChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
-    let labels, data, colors;
+
+    let labels = [], dataPoints = [], bgColors = [];
+
     if (currentChartMode === 'balance') {
-        labels = ['Receitas', 'Despesas']; colors = ['#10b981', '#ef4444'];
-        if (income === 0 && expense === 0) { data = [1]; colors = ['#e2e8f0']; labels = ['Vazio']; }
-        else { data = [income, expense]; }
+        let inc = 0, exp = 0;
+        transactions.forEach(t => t.type === 'income' ? inc += parseFloat(t.amount) : exp += parseFloat(t.amount));
+        labels = ['Receita', 'Despesa']; dataPoints = [inc, exp]; bgColors = ['#10b981', '#ef4444'];
+        if (inc === 0 && exp === 0) { dataPoints = [1]; bgColors = ['#eee']; labels = ['Vazio']; }
+
     } else if (currentChartMode === 'category') {
         const expenses = transactions.filter(t => t.type === 'expense');
-        if (expenses.length === 0) { labels = ['Sem despesas']; data = [1]; colors = ['#e2e8f0']; }
-        else {
-            const catTotals = {};
-            expenses.forEach(t => { const cat = t.category || 'Outro'; catTotals[cat] = (catTotals[cat] || 0) + t.amount; });
-            labels = Object.keys(catTotals); data = Object.values(catTotals);
-            colors = categoryColors.slice(0, labels.length);
-        }
+        const catTotals = {};
+        expenses.forEach(t => {
+            const c = t.category.trim();
+            catTotals[c] = (catTotals[c] || 0) + parseFloat(t.amount);
+        });
+        labels = Object.keys(catTotals); dataPoints = Object.values(catTotals);
+        bgColors = labels.map((_, i) => purplePalette[i % purplePalette.length]);
+        if (dataPoints.length === 0) { labels = ['Sem Despesas']; dataPoints = [1]; bgColors = ['#eee']; }
     }
+
     chartInstance = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { font: { family: 'Outfit', size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } } } }
+        data: { labels, datasets: [{ data: dataPoints, backgroundColor: bgColors, borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, font: { size: 10 } } } } }
     });
 }
 
-// --- EXPORTAÇÃO E IMPRESSÃO ---
+function renderGoalsSummary() {
+    const list = document.getElementById('goals-summary-list');
+    list.innerHTML = '';
 
-async function exportData() {
-    if (window.pywebview) {
-        document.body.style.cursor = 'wait';
-        try {
-            const res = await pywebview.api.export_csv();
-            if (res.status === 'success') showAlert('Arquivo exportado com sucesso!\nSalvo em: ' + res.path, "Sucesso");
-            else if (res.status === 'error') showAlert('Erro ao exportar: ' + res.message, "Erro");
-        } catch (e) { console.error(e); showAlert('Erro de comunicação.'); }
-        finally { document.body.style.cursor = 'default'; }
+    const now = new Date();
+    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const spending = {};
+    allTransactions.forEach(t => {
+        if (t.type === 'expense' && t.date.startsWith(currentMonthStr)) {
+            const c = t.category.trim();
+            spending[c] = (spending[c] || 0) + parseFloat(t.amount);
+        }
+    });
+
+    let hasGoal = false;
+    categories.expense.forEach(cat => {
+        const limit = parseFloat(allGoals[cat] || 0);
+        if (limit > 0) {
+            hasGoal = true;
+            const spent = spending[cat] || 0;
+            const percent = (spent / limit) * 100;
+            let barClass = 'fill-success';
+            if (percent > 75) barClass = 'fill-warning';
+            if (percent > 100) barClass = 'fill-danger';
+
+            const div = document.createElement('div');
+            div.className = 'goal-item-summary';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <span>${cat}</span>
+                    <span style="color:${percent > 100 ? 'var(--danger)' : '#666'}">${Math.min(percent, 999).toFixed(0)}%</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill ${barClass}" style="width:${Math.min(percent, 100)}%"></div></div>
+            `;
+            list.appendChild(div);
+        }
+    });
+    if (!hasGoal) list.innerHTML = '<div class="empty-state">Nenhuma meta definida.</div>';
+}
+
+// --- ANÁLISE ---
+function renderAnalysis() {
+    if (!window.currentInsights) return;
+    const data = window.currentInsights;
+
+    // IA Previsão
+    const fEl = document.getElementById('forecast-value');
+    fEl.innerText = `R$ ${data.forecast_next_month.toFixed(2)}`;
+    const tEl = document.getElementById('trend-indicator');
+
+    if (data.forecast_next_month > 0) {
+        if (data.trend === 'up') {
+            tEl.innerHTML = '<i class="fas fa-arrow-trend-up"></i> Tendência de Alta';
+            tEl.style.color = 'var(--danger)';
+        } else if (data.trend === 'down') {
+            tEl.innerHTML = '<i class="fas fa-arrow-trend-down"></i> Tendência de Queda';
+            tEl.style.color = 'var(--success)';
+        } else {
+            tEl.innerHTML = '<i class="fas fa-minus"></i> Gastos Estáveis';
+            tEl.style.color = 'var(--text-muted)';
+        }
+    } else {
+        tEl.innerHTML = 'Dados insuficientes (mín. 3 meses)';
+        tEl.style.color = '#999';
+    }
+
+    // Comparativo CORRETO (Mês atual vs Mês Passado)
+    const currExp = data.current_month.expense;
+    const lastExp = data.last_month.expense;
+
+    document.getElementById('comp-last-month').innerText = `R$ ${lastExp.toFixed(2)}`;
+    document.getElementById('comp-curr-month').innerText = `R$ ${currExp.toFixed(2)}`;
+
+    const diff = currExp - lastExp;
+    const compText = document.getElementById('comp-text');
+
+    if (lastExp === 0) {
+        compText.innerText = `Gastos atuais: R$ ${currExp.toFixed(2)}.`;
+        compText.style.color = 'var(--text-muted)';
+    } else if (diff > 0) {
+        const pct = (diff / lastExp) * 100;
+        compText.innerHTML = `Você gastou <b style="color:var(--danger)">R$ ${diff.toFixed(2)} (+${pct.toFixed(0)}%)</b> a mais que no mês anterior.`;
+    } else if (diff < 0) {
+        const absDiff = Math.abs(diff);
+        const pct = (absDiff / lastExp) * 100;
+        compText.innerHTML = `Parabéns! Você economizou <b style="color:var(--success)">R$ ${absDiff.toFixed(2)} (-${pct.toFixed(0)}%)</b>.`;
+    } else {
+        compText.innerText = "Seus gastos estão iguais ao mês anterior.";
+        compText.style.color = 'var(--text-muted)';
     }
 }
 
+async function delTrans(id) {
+    if (await showConfirm("Excluir lançamento?")) {
+        await pywebview.api.delete_transaction(id);
+        refreshData();
+    }
+}
+
+function toggleInstallmentInput() {
+    const chk = document.getElementById('is-installment');
+    const div = document.getElementById('installment-inputs');
+    if (chk.checked) div.classList.remove('hidden'); else div.classList.add('hidden');
+}
+
+function updateCategories() {
+    const t = document.getElementById('t-type').value;
+    const s = document.getElementById('t-category');
+    s.innerHTML = '';
+    if (categories[t]) categories[t].forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
+}
+
+async function addCategory(t) {
+    const v = document.getElementById(`new-cat-${t}`).value.trim();
+    if (v && !categories[t].includes(v)) {
+        categories[t].push(v);
+        await pywebview.api.update_categories(categories.income, categories.expense);
+        document.getElementById(`new-cat-${t}`).value = '';
+        refreshData();
+        renderCategoriesPage();
+    }
+}
+
+function renderCategoriesPage() {
+    ['expense', 'income'].forEach(t => {
+        const l = document.getElementById(`list-cat-${t}`);
+        l.innerHTML = '';
+        categories[t].forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${c}</span><button onclick="remCat('${t}','${c}')" class="btn-del-cat"><i class="fas fa-trash"></i></button>`;
+            l.appendChild(li);
+        });
+    });
+}
+async function remCat(t, n) {
+    if (await showConfirm(`Excluir categoria "${n}"?`)) {
+        categories[t] = categories[t].filter(c => c !== n);
+        await pywebview.api.update_categories(categories.income, categories.expense);
+        refreshData();
+        renderCategoriesPage();
+    }
+}
+
+function renderGoalsPage() {
+    const grid = document.getElementById('goals-grid');
+    grid.innerHTML = '';
+    const now = new Date();
+    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const spending = {};
+    allTransactions.forEach(t => {
+        if (t.type === 'expense' && t.date.startsWith(currentMonthStr)) {
+            const c = t.category.trim();
+            spending[c] = (spending[c] || 0) + parseFloat(t.amount);
+        }
+    });
+
+    categories.expense.forEach(cat => {
+        const limit = parseFloat(allGoals[cat] || 0);
+        const spent = spending[cat] || 0;
+        const pct = limit > 0 ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
+        let cls = 'fill-success'; if (pct > 75) cls = 'fill-warning'; if (pct > 100) cls = 'fill-danger';
+
+        const d = document.createElement('div');
+        d.className = 'goal-card-detailed';
+        d.innerHTML = `
+            <div class="goal-card-header"><span>${cat}</span><button onclick="promptGoal('${cat}', ${limit})" class="btn-icon-small"><i class="fas fa-cog"></i></button></div>
+            <div class="goal-numbers"><span>Gasto: R$ ${spent.toFixed(2)}</span><span>Meta: R$ ${limit.toFixed(2)}</span></div>
+            <div class="progress-track large"><div class="progress-fill ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
+        `;
+        grid.appendChild(d);
+    });
+}
+
+async function promptGoal(cat, curr) {
+    const val = prompt(`Definir meta para ${cat}:`, curr);
+    if (val !== null) {
+        await pywebview.api.set_goal(cat, val);
+        await refreshData();
+    }
+}
+
+function calculateSimulation() {
+    const m = parseFloat(document.getElementById('sim-monthly').value);
+    const r = parseFloat(document.getElementById('sim-rate').value) / 100;
+    const y = parseInt(document.getElementById('sim-years').value);
+    let total = 0, inv = 0;
+    for (let i = 0; i < y * 12; i++) { total = (total + m) * (1 + r); inv += m; }
+    document.getElementById('sim-result').classList.remove('hidden');
+    document.getElementById('res-total').innerText = `R$ ${total.toFixed(2)}`;
+    document.getElementById('res-invested').innerText = `R$ ${inv.toFixed(2)}`;
+    document.getElementById('res-interest').innerText = `+ R$ ${(total - inv).toFixed(2)}`;
+}
+
+function setFilter(f) { currentFilter = f; renderDashboard(); document.querySelectorAll('.pill').forEach(p => p.classList.remove('active')); event.target.classList.add('active'); }
+function showAlert(m) { document.getElementById('alert-message').innerText = m; document.getElementById('custom-alert').classList.remove('hidden'); }
+function closeAlert() { document.getElementById('custom-alert').classList.add('hidden'); }
+let cr = null;
+function showConfirm(m) { return new Promise(r => { document.getElementById('confirm-message').innerText = m; document.getElementById('custom-confirm').classList.remove('hidden'); cr = r; }); }
+function resolveConfirm(v) { document.getElementById('custom-confirm').classList.add('hidden'); if (cr) cr(v); }
+function exportData() { if (window.pywebview) pywebview.api.export_csv().then(r => showAlert(r.status === 'success' ? 'Salvo!' : 'Erro')); }
 function openPrintModal() { document.getElementById('print-modal').classList.remove('hidden'); }
 function closePrintModal() { document.getElementById('print-modal').classList.add('hidden'); }
-
-function confirmPrint(type) {
-    closePrintModal();
-    document.getElementById('printable-list').classList.remove('print-visible');
-    document.getElementById('printable-dashboard').classList.remove('print-visible');
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR');
-    document.querySelectorAll('.print-date-fill').forEach(el => el.innerText = dateStr);
-
-    if (type === 'weekly' || type === 'monthly') {
-        prepareDetailedPrint(type);
-        document.getElementById('printable-list').classList.add('print-visible');
-    } else {
-        prepareDashboardPrint(type);
-        document.getElementById('printable-dashboard').classList.add('print-visible');
-    }
-    setTimeout(() => window.print(), 200);
-}
-
-function prepareDetailedPrint(type) {
-    const now = new Date();
-    let filteredData = allTransactions.filter(t => {
-        const parts = t.date.split('-');
-        const tDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
-        if (type === 'weekly') { const d = new Date(); d.setDate(now.getDate() - 7); return tDate >= d; }
-        if (type === 'monthly') return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-        return true;
-    });
-
-    document.getElementById('print-list-period').innerText = type === 'weekly' ? 'Últimos 7 dias' : 'Mês Atual';
-    const tbody = document.getElementById('print-table-body');
-    tbody.innerHTML = '';
-    let totalInc = 0, totalExp = 0;
-    filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    filteredData.forEach(t => {
-        if (t.type === 'income') totalInc += t.amount; else totalExp += t.amount;
-        const parts = t.date.split('-');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${parts[2]}/${parts[1]}/${parts[0]}</td><td>${t.type === 'income' ? 'Receita' : 'Despesa'}</td><td>${t.category || '-'}</td><td>${t.description}</td><td style="text-align:right">${t.type === 'income' ? '+' : '-'} R$ ${t.amount.toFixed(2)}</td>`;
-        tbody.appendChild(tr);
-    });
-    document.getElementById('pl-inc').innerText = `R$ ${totalInc.toFixed(2)}`;
-    document.getElementById('pl-exp').innerText = `R$ ${totalExp.toFixed(2)}`;
-    document.getElementById('pl-bal').innerText = `R$ ${(totalInc - totalExp).toFixed(2)}`;
-}
-
-function prepareDashboardPrint(type) {
-    const now = new Date();
-    let filteredData = allTransactions;
-    if (type === 'annual') {
-        filteredData = allTransactions.filter(t => parseInt(t.date.split('-')[0]) === now.getFullYear());
-        document.getElementById('print-dash-period').innerText = `Resumo Anual (${now.getFullYear()})`;
-    } else {
-        document.getElementById('print-dash-period').innerText = `Resumo Geral`;
-    }
-
-    let totalInc = 0, totalExp = 0;
-    const catTotals = {}, monthlyTotals = {};
-    filteredData.forEach(t => {
-        if (t.type === 'income') totalInc += t.amount;
-        else {
-            totalExp += t.amount;
-            const cat = t.category || 'Outros';
-            catTotals[cat] = (catTotals[cat] || 0) + t.amount;
-        }
-        const monthKey = t.date.substring(0, 7);
-        if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = { inc: 0, exp: 0 };
-        if (t.type === 'income') monthlyTotals[monthKey].inc += t.amount; else monthlyTotals[monthKey].exp += t.amount;
-    });
-
-    document.getElementById('pd-inc').innerText = `R$ ${totalInc.toFixed(2)}`;
-    document.getElementById('pd-exp').innerText = `R$ ${totalExp.toFixed(2)}`;
-    document.getElementById('pd-bal').innerText = `R$ ${(totalInc - totalExp).toFixed(2)}`;
-
-    const barsContainer = document.getElementById('print-cat-bars');
-    barsContainer.innerHTML = '';
-    const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-    const maxVal = sortedCats.length > 0 ? sortedCats[0][1] : 0;
-    if (sortedCats.length === 0) barsContainer.innerHTML = '<p style="text-align:center;color:#999">Sem despesas.</p>';
-    sortedCats.forEach(([cat, val]) => {
-        const percent = maxVal > 0 ? (val / maxVal) * 100 : 0;
-        const div = document.createElement('div');
-        div.className = 'print-bar-item';
-        div.innerHTML = `<span class="print-bar-label">${cat}</span><div class="print-bar-track"><div class="print-bar-fill" style="width: ${percent}%; background-color: #3c096c;"></div></div><span class="print-bar-value">R$ ${val.toFixed(2)}</span>`;
-        barsContainer.appendChild(div);
-    });
-
-    const monthBody = document.getElementById('print-month-body');
-    monthBody.innerHTML = '';
-    const sortedMonths = Object.keys(monthlyTotals).sort();
-    if (sortedMonths.length === 0) monthBody.innerHTML = '<tr><td colspan="4" style="text-align:center">Sem dados.</td></tr>';
-    sortedMonths.forEach(m => {
-        const data = monthlyTotals[m];
-        const [ano, mes] = m.split('-');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${mes}/${ano}</td><td style="text-align:right">R$ ${data.inc.toFixed(2)}</td><td style="text-align:right">R$ ${data.exp.toFixed(2)}</td><td style="text-align:right"><b>R$ ${(data.inc - data.exp).toFixed(2)}</b></td>`;
-        monthBody.appendChild(tr);
-    });
-}
+function confirmPrint() { closePrintModal(); window.print(); }

@@ -4,171 +4,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor Financeiro</title>
-    <!-- Fonte Outfit -->
+    <title>FinPy - Gestor Inteligente</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js para Gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Ícones -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- CSS Externo -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <!-- === MODAIS PERSONALIZADOS === -->
-
-    <!-- Modal de Impressão (Já existia) -->
+    <!-- MODAIS -->
     <div id="print-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-print"></i> Imprimir Relatório</h3>
+                <h3><i class="fas fa-print"></i> Relatórios</h3>
                 <button onclick="closePrintModal()" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
-            <p>Selecione o tipo de relatório que deseja gerar:</p>
             <div class="print-options">
-                <div class="print-option-group">
-                    <span>Detalhado (Lista)</span>
-                    <button onclick="confirmPrint('weekly')" class="btn-print-opt"><i class="fas fa-calendar-week"></i>
-                        Semanal</button>
-                    <button onclick="confirmPrint('monthly')" class="btn-print-opt"><i class="fas fa-calendar-alt"></i>
-                        Mensal</button>
-                </div>
-                <div class="print-option-group">
-                    <span>Executivo (Resumo Gráfico)</span>
-                    <button onclick="confirmPrint('annual')" class="btn-print-opt accent"><i
-                            class="fas fa-chart-bar"></i> Anual</button>
-                    <button onclick="confirmPrint('all')" class="btn-print-opt accent"><i class="fas fa-globe"></i>
-                        Geral</button>
-                </div>
+                <button onclick="confirmPrint('weekly')" class="btn-print-opt"><i class="fas fa-calendar-week"></i>
+                    Semanal</button>
+                <button onclick="confirmPrint('monthly')" class="btn-print-opt"><i class="fas fa-calendar-alt"></i>
+                    Mensal</button>
+                <button onclick="confirmPrint('annual')" class="btn-print-opt accent"><i class="fas fa-chart-bar"></i>
+                    Anual</button>
             </div>
         </div>
     </div>
 
-    <!-- Novo: Modal de Alerta (Substitui alert()) -->
     <div id="custom-alert" class="modal-overlay hidden" style="z-index: 200;">
         <div class="modal-content small">
-            <div class="modal-header">
-                <h3 id="alert-title">Atenção</h3>
-                <button onclick="closeAlert()" class="close-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <p id="alert-message">Mensagem aqui...</p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeAlert()" class="btn-primary-modal">OK</button>
-            </div>
+            <h3 id="alert-title" style="margin-bottom:10px; color:var(--primary)">Atenção</h3>
+            <p id="alert-message" style="margin-bottom:20px">Mensagem...</p>
+            <div class="modal-footer"><button onclick="closeAlert()" class="btn-primary-modal">OK</button></div>
         </div>
     </div>
 
-    <!-- Novo: Modal de Confirmação (Substitui confirm()) -->
     <div id="custom-confirm" class="modal-overlay hidden" style="z-index: 200;">
         <div class="modal-content small">
-            <div class="modal-header">
-                <h3>Confirmação</h3>
-                <button onclick="resolveConfirm(false)" class="close-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <p id="confirm-message">Tem certeza?</p>
-            </div>
+            <h3 style="margin-bottom:10px">Confirmação</h3>
+            <p id="confirm-message" style="margin-bottom:20px">Tem certeza?</p>
             <div class="modal-footer">
-                <button onclick="resolveConfirm(false)" class="btn-secondary-modal">Cancelar</button>
-                <button onclick="resolveConfirm(true)" class="btn-danger-modal">Confirmar</button>
+                <button onclick="resolveConfirm(false)" class="btn-secondary-modal">Não</button>
+                <button onclick="resolveConfirm(true)" class="btn-danger-modal">Sim</button>
             </div>
         </div>
     </div>
 
-    <!-- === FIM MODAIS === -->
-
+    <!-- SIDEBAR -->
     <aside class="sidebar no-print">
-        <div class="logo">
-            <i class="fas fa-wallet"></i> FinPy
-        </div>
+        <div class="logo"><i class="fas fa-wallet"></i> FinPy <span
+                style="font-size:10px; opacity:0.6; margin-left:5px">AI</span></div>
         <ul class="nav-links">
-            <li class="nav-category">Relatórios</li>
-            <li><button class="nav-btn active" onclick="setFilter('all')"><i class="fas fa-home"></i> Visão
+            <li class="nav-category">Principal</li>
+            <li><button class="nav-btn active" onclick="setView('dashboard')"><i class="fas fa-home"></i> Visão
                     Geral</button></li>
-            <li><button class="nav-btn" onclick="setFilter('weekly')"><i class="fas fa-calendar-week"></i>
-                    Semanal</button></li>
-            <li><button class="nav-btn" onclick="setFilter('monthly')"><i class="fas fa-calendar-alt"></i>
-                    Mensal</button></li>
-            <li><button class="nav-btn" onclick="setFilter('annual')"><i class="fas fa-calendar"></i> Anual</button>
+            <li><button class="nav-btn" onclick="setView('analysis')"><i class="fas fa-chart-line"></i> Análise &
+                    IA</button></li>
+            <li><button class="nav-btn" onclick="setView('simulation')"><i class="fas fa-piggy-bank"></i>
+                    Simulação</button></li>
+
+            <li class="nav-category">Planejamento</li>
+            <li><button class="nav-btn" onclick="setView('goals')"><i class="fas fa-bullseye"></i> Metas</button></li>
+            <li><button class="nav-btn" onclick="setView('categories')"><i class="fas fa-tags"></i> Categorias</button>
             </li>
 
-            <li class="nav-category" style="margin-top: 20px;">Planejamento</li>
-            <li><button class="nav-btn" onclick="showGoalsView()"><i class="fas fa-bullseye"></i> Metas</button></li>
-            <li><button class="nav-btn" onclick="showCategoriesView()"><i class="fas fa-tags"></i> Categorias</button>
-            </li>
-
-            <li class="nav-category" style="margin-top: 20px;">Dados</li>
+            <li class="nav-category">Dados</li>
             <li><button class="nav-btn" onclick="exportData()"><i class="fas fa-file-csv"></i> Exportar CSV</button>
             </li>
-            <li><button class="nav-btn" onclick="openPrintModal()"><i class="fas fa-print"></i> Imprimir / PDF</button>
-            </li>
+            <li><button class="nav-btn" onclick="openPrintModal()"><i class="fas fa-print"></i> Relatórios</button></li>
         </ul>
-        <div style="margin-top: auto; font-size: 12px; opacity: 0.6;">
-            v2.2.0 Custom Alerts
-        </div>
     </aside>
 
-    <main class="main-content no-print">
-        <header>
-            <div class="header-left">
+    <main class="main-content">
+        <header class="no-print">
+            <div>
                 <h1 id="page-title">Visão Geral</h1>
-                <p class="subtitle" id="page-subtitle">Acompanhe suas finanças</p>
+                <p class="subtitle" id="page-subtitle">Suas finanças inteligentes</p>
             </div>
-            <div class="header-right">
-                <div id="clock" class="clock-display">00:00:00</div>
-                <div id="current-date" class="date-display">--/--/----</div>
+            <div style="text-align:right">
+                <div id="clock" style="font-size:24px; font-weight:700; color:var(--primary)">00:00</div>
+                <div id="current-date" style="font-size:12px; color:#666">--/--/----</div>
             </div>
         </header>
 
-        <!-- VIEW 1: DASHBOARD -->
+        <!-- VIEW: DASHBOARD -->
         <div id="view-dashboard" class="view-section">
-            <section class="section-cards">
+            <div class="help-card">
+                <i class="fas fa-chart-pie help-bg-icon"></i>
+                <div class="help-content">
+                    <div class="help-text">
+                        <h4><i class="fas fa-info-circle"></i> Painel de Controle</h4>
+                        <p>Acompanhe seu saldo em tempo real. Parcelamentos futuros só aparecem no extrato quando você
+                            seleciona o filtro "Geral". O padrão é exibir apenas o mês atual.</p>
+                    </div>
+                    <button class="close-help" onclick="this.parentElement.style.display='none'"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <div class="section-cards">
                 <div class="card">
-                    <div class="card-icon" style="background: #e0e7ff; color: var(--primary-dark);"><i
-                            class="fas fa-balance-scale"></i></div>
-                    <div>
-                        <span class="card-title">Saldo Total</span>
-                        <span class="card-value" id="total-balance">R$ 0,00</span>
-                    </div>
+                    <div class="card-icon" style="background:#e0e7ff; color:var(--primary)"><i
+                            class="fas fa-wallet"></i></div>
+                    <div><span class="card-title">Saldo Total</span><span class="card-value" id="total-balance">R$
+                            0,00</span></div>
                 </div>
-                <div class="card income">
-                    <div class="card-icon" style="background: #d1fae5; color: var(--success);"><i
-                            class="fas fa-arrow-down"></i></div>
-                    <div>
-                        <span class="card-title">Receitas</span>
-                        <span class="card-value" id="total-income">R$ 0,00</span>
+                <div class="card">
+                    <div class="card-icon" style="background:#d1fae5; color:var(--success)"><i class="fas fa-leaf"></i>
                     </div>
+                    <div><span class="card-title">Taxa de Economia</span><span class="card-value"
+                            id="savings-rate">0%</span></div>
                 </div>
-                <div class="card expense">
-                    <div class="card-icon" style="background: #fee2e2; color: var(--danger);"><i
-                            class="fas fa-arrow-up"></i></div>
-                    <div>
-                        <span class="card-title">Despesas</span>
-                        <span class="card-value" id="total-expense">R$ 0,00</span>
+                <div class="card">
+                    <div class="card-icon" style="background:#fee2e2; color:var(--danger)"><i class="fas fa-fire"></i>
                     </div>
+                    <div><span class="card-title">Maior Gasto (Cat.)</span><span class="card-value" id="top-category"
+                            style="font-size:18px">-</span></div>
                 </div>
-            </section>
+            </div>
+
+            <div id="alerts-area" class="alerts-container hidden"></div>
 
             <div class="content-grid">
                 <section class="panel history-panel">
                     <div class="panel-header">
-                        <h2><i class="fas fa-history"></i> Histórico Recente</h2>
-                        <span class="badge" id="transaction-count">0 itens</span>
+                        <h2><i class="fas fa-list"></i> Extrato</h2>
+                        <div class="filter-pills">
+                            <button class="pill" onclick="setFilter('all')">Geral</button>
+                            <button class="pill active" onclick="setFilter('monthly')">Mês</button>
+                        </div>
                     </div>
-                    <div class="transaction-list" id="transaction-list">
-                        <!-- Itens via JS -->
-                    </div>
+                    <div class="transaction-list" id="transaction-list"></div>
                 </section>
 
                 <div class="right-column">
                     <section class="panel form-panel">
-                        <h2 id="form-title"><i class="fas fa-plus-circle"></i> Nova Transação</h2>
+                        <h2 id="form-title"><i class="fas fa-plus-circle"></i> Novo Lançamento</h2>
                         <form id="trans-form" onsubmit="handleTransactionSubmit(event)">
                             <input type="hidden" id="t-id">
                             <div class="form-grid">
@@ -187,29 +160,46 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label>Valor (R$)</label>
-                                    <input type="number" id="t-amount" placeholder="0,00" step="0.01" required>
+                                    <input type="number" id="t-amount" step="0.01" required placeholder="0.00">
                                 </div>
                                 <div class="form-group">
                                     <label>Data</label>
                                     <input type="date" id="t-date" required>
                                 </div>
                             </div>
+
+                            <div class="form-group checkbox-group" id="installment-group">
+                                <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+                                    <input type="checkbox" id="is-installment" style="width:auto;"
+                                        onchange="toggleInstallmentInput()">
+                                    <label for="is-installment"
+                                        style="margin:0; cursor:pointer; color:var(--primary); font-weight:600">Compra
+                                        Parcelada?</label>
+                                </div>
+                                <div id="installment-inputs" class="hidden"
+                                    style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                                    <label>Parcelas</label>
+                                    <input type="number" id="t-installments" min="2" max="48" value="2"
+                                        placeholder="Qtd">
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label>Descrição</label>
-                                <input type="text" id="t-desc" placeholder="Ex: Supermercado..." required>
+                                <input type="text" id="t-desc" placeholder="Ex: Mercado..." required>
                             </div>
+
                             <div class="form-buttons">
                                 <button type="button" id="btn-cancel" class="btn-cancel hidden"
                                     onclick="cancelEdit()">Cancelar</button>
-                                <button type="submit" id="btn-submit" class="btn-add">Salvar <i
-                                        class="fas fa-check"></i></button>
+                                <button type="submit" id="btn-submit" class="btn-add">Salvar</button>
                             </div>
                         </form>
                     </section>
 
                     <section class="panel chart-panel">
                         <div class="chart-header">
-                            <h2><i class="fas fa-chart-pie"></i> Análise</h2>
+                            <h2>Resumo</h2>
                             <div class="chart-toggles">
                                 <button class="toggle-btn active" onclick="switchChart('balance')">Balanço</button>
                                 <button class="toggle-btn" onclick="switchChart('category')">Cat.</button>
@@ -219,104 +209,134 @@
                         <div id="chart-wrapper" class="chart-container">
                             <canvas id="miniChart"></canvas>
                         </div>
-                        <div id="goals-container" class="goals-list hidden">
-                            <div class="empty-state">Carregando metas...</div>
+                        <div id="goals-summary-list" class="goals-list hidden">
+                            <div class="empty-state">Sem metas definidas.</div>
                         </div>
                     </section>
                 </div>
             </div>
         </div>
 
-        <!-- VIEW 2: METAS DETALHADAS -->
-        <div id="view-goals-page" class="view-section hidden">
-            <div class="goals-grid" id="detailed-goals-grid">
-                <!-- Cards de Metas -->
+        <!-- VIEW: ANÁLISE -->
+        <div id="view-analysis" class="view-section hidden">
+            <div class="help-card">
+                <i class="fas fa-brain help-bg-icon"></i>
+                <div class="help-content">
+                    <div class="help-text">
+                        <h4><i class="fas fa-robot"></i> Inteligência Financeira</h4>
+                        <p>Nossa IA analisa seus últimos 6 meses de histórico para prever seus gastos futuros.</p>
+                    </div>
+                    <button class="close-help" onclick="this.parentElement.style.display='none'"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="panel highlight-panel">
+                    <h3><i class="fas fa-crystal-ball"></i> Previsão Inteligente</h3>
+                    <p style="margin-top:10px; color:#666">Estimativa de gastos para o próximo mês:</p>
+                    <div class="big-number" id="forecast-value">R$ 0,00</div>
+                    <div class="trend-indicator" id="trend-indicator">Calculando...</div>
+                </div>
+                <div class="panel">
+                    <h3><i class="fas fa-exchange-alt"></i> Comparativo</h3>
+                    <div class="comparison-row">
+                        <div style="text-align:center"><span style="font-size:12px">Anterior</span><strong
+                                style="display:block; font-size:18px" id="comp-last-month">R$ 0,00</strong></div>
+                        <div class="vs-badge">VS</div>
+                        <div style="text-align:center"><span style="font-size:12px">Atual</span><strong
+                                style="display:block; font-size:18px" id="comp-curr-month">R$ 0,00</strong></div>
+                    </div>
+                    <p id="comp-text" style="text-align:center; font-size:13px; margin-top:20px; font-weight:500"></p>
+                </div>
             </div>
         </div>
 
-        <!-- VIEW 3: GERENCIAR CATEGORIAS -->
-        <div id="view-categories-page" class="view-section hidden">
+        <!-- VIEW: SIMULAÇÃO -->
+        <div id="view-simulation" class="view-section hidden">
+            <div class="help-card">
+                <i class="fas fa-calculator help-bg-icon"></i>
+                <div class="help-content">
+                    <div class="help-text">
+                        <h4><i class="fas fa-piggy-bank"></i> Calculadora de Futuro</h4>
+                        <p>Simule o poder dos juros compostos. Veja quanto seu dinheiro pode render ao longo do tempo.
+                        </p>
+                    </div>
+                    <button class="close-help" onclick="this.parentElement.style.display='none'"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <div class="panel" style="max-width: 800px; margin: 0 auto;">
+                <h2><i class="fas fa-chart-line"></i> Parâmetros da Simulação</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Aporte Mensal (R$)</label><input type="number" id="sim-monthly"
+                            value="500"></div>
+                    <div class="form-group"><label>Taxa Mensal (%)</label><input type="number" id="sim-rate" value="0.8"
+                            step="0.1"></div>
+                    <div class="form-group"><label>Tempo (Anos)</label><input type="number" id="sim-years" value="2">
+                    </div>
+                </div>
+                <button class="btn-add" onclick="calculateSimulation()">Simular</button>
+                <div id="sim-result" class="hidden"
+                    style="margin-top:20px; text-align:center; background:#f0f9ff; padding:20px; border-radius:10px;">
+                    <div style="font-size:40px; font-weight:700; color:var(--primary)" id="res-total">R$ 0,00</div>
+                    <div style="font-size:12px; color:#666">Total Investido: <span id="res-invested"></span> | Juros:
+                        <span id="res-interest" style="color:var(--success)"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: METAS (DETALHADO) -->
+        <div id="view-goals" class="view-section hidden">
+            <div class="help-card">
+                <i class="fas fa-bullseye help-bg-icon"></i>
+                <div class="help-content">
+                    <div class="help-text">
+                        <h4><i class="fas fa-crosshairs"></i> Metas de Gastos</h4>
+                        <p>Defina limites mensais para cada categoria. As barras mostram o consumo em tempo real.</p>
+                    </div>
+                    <button class="close-help" onclick="this.parentElement.style.display='none'"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div id="goals-grid" class="goals-grid"></div>
+        </div>
+
+        <!-- VIEW: CATEGORIAS -->
+        <div id="view-categories" class="view-section hidden">
+            <div class="help-card">
+                <i class="fas fa-tags help-bg-icon"></i>
+                <div class="help-content">
+                    <div class="help-text">
+                        <h4><i class="fas fa-sliders-h"></i> Personalização</h4>
+                        <p>Adicione ou remova categorias de receitas e despesas para organizar seus lançamentos.</p>
+                    </div>
+                    <button class="close-help" onclick="this.parentElement.style.display='none'"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
             <div class="categories-layout">
                 <div class="panel">
-                    <h2><i class="fas fa-arrow-up" style="color:var(--danger)"></i> Categorias de Despesa</h2>
-                    <div class="category-input-group">
-                        <input type="text" id="new-cat-expense" placeholder="Nova categoria de despesa...">
-                        <button class="btn-add-cat" onclick="addCategory('expense')"><i
-                                class="fas fa-plus"></i></button>
-                    </div>
+                    <h3 style="color:var(--danger)">Despesas</h3>
+                    <div class="category-input-group"><input type="text" id="new-cat-expense"
+                            placeholder="Nova..."><button class="btn-add-cat"
+                            onclick="addCategory('expense')">+</button></div>
                     <ul id="list-cat-expense" class="category-list"></ul>
                 </div>
                 <div class="panel">
-                    <h2><i class="fas fa-arrow-down" style="color:var(--success)"></i> Categorias de Receita</h2>
-                    <div class="category-input-group">
-                        <input type="text" id="new-cat-income" placeholder="Nova categoria de receita...">
-                        <button class="btn-add-cat" onclick="addCategory('income')"><i class="fas fa-plus"></i></button>
+                    <h3 style="color:var(--success)">Receitas</h3>
+                    <div class="category-input-group"><input type="text" id="new-cat-income"
+                            placeholder="Nova..."><button class="btn-add-cat" onclick="addCategory('income')">+</button>
                     </div>
                     <ul id="list-cat-income" class="category-list"></ul>
                 </div>
             </div>
         </div>
+
+        <div id="print-area" class="print-container"></div>
     </main>
-
-    <!-- ÁREA DE IMPRESSÃO (Mantida) -->
-    <div id="printable-list" class="print-container">
-        <div class="print-header">
-            <h1>Relatório Detalhado</h1>
-            <p id="print-list-period">Período: Semanal</p>
-            <p style="font-size:10px; color:#666;">Gerado em: <span class="print-date-fill"></span></p>
-        </div>
-        <div class="print-summary-row">
-            <div class="p-card"><span>Receitas</span><strong id="pl-inc" style="color:var(--success)"></strong></div>
-            <div class="p-card"><span>Despesas</span><strong id="pl-exp" style="color:var(--danger)"></strong></div>
-            <div class="p-card"><span>Saldo</span><strong id="pl-bal"></strong></div>
-        </div>
-        <table class="print-table">
-            <thead>
-                <tr>
-                    <th>Data</th>
-                    <th>Tipo</th>
-                    <th>Categoria</th>
-                    <th>Descrição</th>
-                    <th style="text-align:right">Valor</th>
-                </tr>
-            </thead>
-            <tbody id="print-table-body"></tbody>
-        </table>
-    </div>
-
-    <div id="printable-dashboard" class="print-container">
-        <div class="print-header">
-            <h1>Relatório Executivo</h1>
-            <p id="print-dash-period">Resumo Anual</p>
-            <p style="font-size:10px; color:#666;">Gerado em: <span class="print-date-fill"></span></p>
-        </div>
-        <div class="print-summary-row big">
-            <div class="p-card"><span>Receita Total</span><strong id="pd-inc" style="color:var(--success)"></strong>
-            </div>
-            <div class="p-card"><span>Despesa Total</span><strong id="pd-exp" style="color:var(--danger)"></strong>
-            </div>
-            <div class="p-card"><span>Resultado</span><strong id="pd-bal"></strong></div>
-        </div>
-        <div class="print-section">
-            <h3>Despesas por Categoria</h3>
-            <div id="print-cat-bars" class="print-bars-container"></div>
-        </div>
-        <div class="print-section">
-            <h3>Evolução Mensal</h3>
-            <table class="print-table compact">
-                <thead>
-                    <tr>
-                        <th>Mês</th>
-                        <th style="text-align:right">Entrada</th>
-                        <th style="text-align:right">Saída</th>
-                        <th style="text-align:right">Saldo</th>
-                    </tr>
-                </thead>
-                <tbody id="print-month-body"></tbody>
-            </table>
-        </div>
-    </div>
-
     <script src="script.js"></script>
 </body>
 
